@@ -1,7 +1,9 @@
 package edu.jsu.mcis.cs310;
 
-import com.github.cliftonlabs.json_simple.*;
 import com.opencsv.*;
+import com.github.cliftonlabs.json_simple.*;
+import java.io.*;
+import java.util.*;
 
 public class Converter {
     
@@ -71,40 +73,125 @@ public class Converter {
         
     */
     
+    private static final String COL_HEADER_NAME = "colHeaders";
+    private static final String ROW_HEADER_NAME = "rowHeaders";
+    private static final String DATA_ROWS_NAME = "data";
+    
     @SuppressWarnings("unchecked")
     public static String csvToJson(String csvString) {
         
-        String result = "{}"; // default return value; replace later!
+        JsonObject jsonOutputObject = new JsonObject();
         
         try {
+            
+            CSVReader reader = new CSVReader(new StringReader(csvString));
+            List<String[]> full = reader.readAll();
+            Iterator<String[]> iterator = full.iterator();
+            
+            String[] currCSV_Row = iterator.next();
+
+            JsonArray JA_DataArrays = new JsonArray();
+            JsonArray JA_RowHeaders = new JsonArray();
+            
+            jsonOutputObject.put(COL_HEADER_NAME, stringArrayToJsonArray(currCSV_Row));
+            
+             
+            while (iterator.hasNext()) {
+                
+                currCSV_Row = iterator.next();
+                
+                JA_RowHeaders.add(currCSV_Row[0]);
+                
+                JsonArray JA_DataRow = new JsonArray();
+                
+                /*for (int i = 1; i <  currCSV_Row.length; ++i) {
+                    JA_DataRow.add(Integer.parseInt(currCSV_Row[i]));
+                }*/
+                
+                JA_DataArrays.add(JA_DataRow);
+            }
+                                  
+            jsonOutputObject.put(ROW_HEADER_NAME, JA_RowHeaders);
+            jsonOutputObject.put(DATA_ROWS_NAME, JA_DataArrays);
+            
+            
+        }        
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+        return jsonOutputObject.toJson().trim();
+    }
+    
+    
+        public static String jsonToCsv(String jsonString) {
         
-            // INSERT YOUR CODE HERE
+        try {
+            
+            JsonObject originJsonObject = null; // to-do
+            
+            List<String[]> parsedRowArrays = new ArrayList<>();
+            
+            StringWriter writer = new StringWriter();
+            CSVWriter csvWriter = new CSVWriter(writer, ',', '"', '\\', "\n");
+            
+            
+            
+            parsedRowArrays.add(JsonArrayToStringArray((JsonArray)originJsonObject.get(COL_HEADER_NAME)));
+            
+            
+            /* Arrange: Data Row & Row Header pairs */
+
+            JsonArray JA_DataArrays = (JsonArray)originJsonObject.get(DATA_ROWS_NAME);
+            JsonArray JA_RowHeaders = (JsonArray)originJsonObject.get(ROW_HEADER_NAME);
+
+            for (int i = 0; i < JA_RowHeaders.size(); ++i) {
+                
+                // append row header onto array of its corresponding row data
+                parsedRowArrays.add(ArrayUtils.insert(
+                        0,
+                        JsonArrayToStringArray((JsonArray)JA_DataArrays.get(i)),
+                        JA_RowHeaders.get(i).toString()
+                ));
+                
+            }
+            
+            
+            /* Submit arrangements */
+            
+            csvWriter.writeAll(parsedRowArrays);
+            
+            return writer.toString().trim();
             
         }
         catch (Exception e) {
             e.printStackTrace();
         }
-        
-        return result.trim();
         
     }
     
-    @SuppressWarnings("unchecked")
-    public static String jsonToCsv(String jsonString) {
+    private static JsonArray stringArrayToJsonArray(String[] SA) {
         
-        String result = ""; // default return value; replace later!
+        JsonArray JA = new JsonArray();
         
-        try {
-            
-            // INSERT YOUR CODE HERE
-            
-        }
-        catch (Exception e) {
-            e.printStackTrace();
+        for (int i = 0; i < SA.length; ++i) {
+            JA.add(SA[i]);
         }
         
-        return result.trim();
+        return JA;
+        
+    }
+    
+    private static String[] JsonArrayToStringArray(JsonArray JA) {
+        
+        String[] SA = new String[JA.size()];
+        
+        for (int i = 0; i < JA.size(); ++i) {
+            SA[i] = (JA.get(i).toString());
+        }
+        
+        return SA;
         
     }
     
 }
+
