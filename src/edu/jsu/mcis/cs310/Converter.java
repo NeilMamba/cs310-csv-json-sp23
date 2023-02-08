@@ -3,6 +3,7 @@ package edu.jsu.mcis.cs310;
 import com.opencsv.*;
 import com.github.cliftonlabs.json_simple.*;
 import java.io.*;
+import java.text.DecimalFormat;
 import java.util.*;
 
 public class Converter {
@@ -73,9 +74,9 @@ public class Converter {
         
     */
     
-    private static final String COL_HEADER_NAME = "colHeaders";
-    private static final String ROW_HEADER_NAME = "rowHeaders";
-    private static final String DATA_ROWS_NAME = "data";
+    private static final String COL_HEADER_NAME = "ColHeadings";
+    private static final String ROW_HEADER_NAME = "ProdNums";
+    private static final String DATA_ROWS_NAME = "Data";
     
     @SuppressWarnings("unchecked")
     public static String csvToJson(String csvString) {
@@ -93,7 +94,9 @@ public class Converter {
             JsonArray JA_DataArrays = new JsonArray();
             JsonArray JA_RowHeaders = new JsonArray();
             
-            jsonOutputObject.put(COL_HEADER_NAME, stringArrayToJsonArray(currCSV_Row));
+            JsonArray colHeadings = stringArrayToJsonArray(currCSV_Row);
+            
+            jsonOutputObject.put(COL_HEADER_NAME, colHeadings);
             
              
             while (iterator.hasNext()) {
@@ -104,9 +107,17 @@ public class Converter {
                 
                 JsonArray JA_DataRow = new JsonArray();
                 
-                /*for (int i = 1; i <  currCSV_Row.length; ++i) {
-                    JA_DataRow.add(Integer.parseInt(currCSV_Row[i]));
-                }*/
+                for (int i = 1; i < currCSV_Row.length; ++i) {
+                    
+                    
+                    if (i == colHeadings.indexOf("Episode") || i == colHeadings.indexOf("Season")) {
+                        JA_DataRow.add(Integer.parseInt(currCSV_Row[i]));
+                    }
+                    else {
+                        JA_DataRow.add(currCSV_Row[i]);
+                    }
+                    
+                }
                 
                 JA_DataArrays.add(JA_DataRow);
             }
@@ -123,11 +134,15 @@ public class Converter {
     }
     
     
-        public static String jsonToCsv(String jsonString) {
+    public static String jsonToCsv(String jsonString) {
+        
+        DecimalFormat df = new DecimalFormat("00");
+        
+        String result = "";
         
         try {
             
-            JsonObject originJsonObject = null; // to-do
+            JsonObject originJsonObject = (JsonObject)Jsoner.deserialize(jsonString);
             
             List<String[]> parsedRowArrays = new ArrayList<>();
             
@@ -135,16 +150,41 @@ public class Converter {
             CSVWriter csvWriter = new CSVWriter(writer, ',', '"', '\\', "\n");
             
             
+            List<String> colHeadings = (List)originJsonObject.get("ColHeadings");
+            csvWriter.writeNext( colHeadings.toArray(new String[0]));
             
-            parsedRowArrays.add(JsonArrayToStringArray((JsonArray)originJsonObject.get(COL_HEADER_NAME)));
             
             
             /* Arrange: Data Row & Row Header pairs */
 
             JsonArray JA_DataArrays = (JsonArray)originJsonObject.get(DATA_ROWS_NAME);
             JsonArray JA_RowHeaders = (JsonArray)originJsonObject.get(ROW_HEADER_NAME);
-
+            
             for (int i = 0; i < JA_RowHeaders.size(); ++i) {
+                
+                ArrayList<String> rowdata = new ArrayList<>();
+                
+                rowdata.add(JA_RowHeaders.get(i).toString());
+                
+                List data = (List)JA_DataArrays.get(i);
+                
+                // Inserting the new index lead to having to adjust the numbers -1
+                int episodeIndex = colHeadings.indexOf("Episode") - 1;
+                
+                for(int j = 0; j < data.size(); ++j) {
+                    if (j == episodeIndex) {
+                        rowdata.add(df.format(Integer.parseInt(data.get(j).toString())));
+                    }
+                    else {
+                        rowdata.add(data.get(j).toString());
+                    }
+                }
+                
+                csvWriter.writeNext( rowdata.toArray(new String[0]) );
+                
+            }
+
+            /*for (int i = 0; i < JA_RowHeaders.size(); ++i) {
                 
                 // append row header onto array of its corresponding row data
                 parsedRowArrays.add(ArrayUtils.insert(
@@ -153,19 +193,21 @@ public class Converter {
                         JA_RowHeaders.get(i).toString()
                 ));
                 
-            }
+            }*/
             
             
             /* Submit arrangements */
             
             csvWriter.writeAll(parsedRowArrays);
             
-            return writer.toString().trim();
+            result = writer.toString().trim();
             
         }
         catch (Exception e) {
             e.printStackTrace();
         }
+        
+        return result;
         
     }
     
